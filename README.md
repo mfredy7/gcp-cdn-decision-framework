@@ -199,7 +199,9 @@ If the SQL query in the previous step reveals a high number of 5xx errors, you m
 This Log Explorer query is designed to detect active infrastructure exhaustion. While standard HTTP 500 errors can often be caused by application bugs or bad code deployments, this specific filter isolates capacity-driven failures at the load balancer level, proving that your backend is being overwhelmed and needs a CDN.
 
 ```text
-resource.type="http_load_balancer" httpRequest.status>=500 (jsonPayload.statusDetails="backend_timeout" OR jsonPayload.statusDetails="backend_connection_closed_before_data_sent_to_client")
+resource.type="http_load_balancer"
+httpRequest.status>=500
+(jsonPayload.statusDetails="backend_timeout" OR jsonPayload.statusDetails="backend_connection_closed_before_data_sent_to_client")
 ```
 
 > **[📁 View Raw Filter: `monitoring/dashboard_filters.txt`](./monitoring/dashboard_filters.txt)**
@@ -219,9 +221,15 @@ For CDN deployment , use Google Cloud's official Terraform architectures:
 
 When defining backend policies in Terraform, add diagnostic headers to monitor edge execution:
 
-|  |
-| --- |
-| HCL  custom\_response\_headers = [   "X-Cache-Status: {cdn\_cache\_status}",   "X-Cache-ID: {cdn\_cache\_id}",   "X-Client-Geo: {client\_region},{client\_city}" ] |
+```hcl
+custom_response_headers = [
+  "X-Cache-Status: {cdn_cache_status}",
+  "X-Cache-ID: {cdn_cache_id}",
+  "X-Client-Geo: {client_region},{client_city}"
+]
+```
+
+> **[📁 View Terraform Config: `terraform/main.tf`](./terraform/main.tf)**
 
 ## Edge Verification & Operational Runbook
 
@@ -231,33 +239,52 @@ Once the load balancer is provisioned, you can use these independent operational
 
 Send continuous requests using curl to evaluate state transitions across cache instances.
 
-|  |
-| --- |
-| Bash  # Export the target domain or Load Balancer Anycast IP export TARGET\_URL="http://YOUR\_LOAD\_BALANCER\_IP/assets/app.js"  # 1. First probe: Cold origin fetch (Cache Fill) curl -s -D - -o /dev/null "${TARGET\_URL}" | grep -Ei "(HTTP/|via|age|x-cache|cache-control)" |
+```bash
+# Export the target domain or Load Balancer Anycast IP
+export TARGET_URL="http://YOUR_LOAD_BALANCER_IP/assets/app.js"
+
+# 1. First probe: Cold origin fetch (Cache Fill)
+curl -s -D - -o /dev/null "${TARGET_URL}" | grep -Ei "(HTTP/|via|age|x-cache|cache-control)"
+```
+
+> **[📁 View Script: `scripts/test_cache_hit.sh`](./scripts/test_cache_hit.sh)**
 
 Expected Cold Output:
 
-|  |
-| --- |
-| HTTP/1.1 200 OK  x-goog-metageneration: 1  x-goog-storage-class: STANDARD  Cache-Control: public,max-age=3600  X-Cache-Status: miss  X-Cache-ID: TLV |
+```http
+HTTP/1.1 200 OK
+x-goog-metageneration: 1
+x-goog-storage-class: STANDARD
+Cache-Control: public,max-age=3600
+X-Cache-Status: miss
+X-Cache-ID: TLV
+```
 
-|  |
-| --- |
-| Bash  # 2. Second probe: Immediate re-request (Edge Hit) curl -s -D - -o /dev/null "${TARGET\_URL}" | grep -Ei "(HTTP/|via|age|x-cache|cache-control)" |
+```bash
+# 2. Second probe: Immediate re-request (Edge Hit)
+curl -s -D - -o /dev/null "${TARGET_URL}" | grep -Ei "(HTTP/|via|age|x-cache|cache-control)"
+```
 
 Expected Warm Output:
 
-|  |
-| --- |
-| HTTP/1.1 200 OK  x-goog-metageneration: 1  x-goog-storage-class: STANDARD  Age: 156 (the elapsed time in seconds since the content was pulled from the origin)  Cache-Control: public,max-age=3600  X-Cache-Status: hit (CDN status)  X-Cache-ID: TLV (CDN location) |
+```http
+HTTP/1.1 200 OK
+x-goog-metageneration: 1
+x-goog-storage-class: STANDARD
+Age: 156 (the elapsed time in seconds since the content was pulled from the origin)
+Cache-Control: public,max-age=3600
+X-Cache-Status: hit (CDN status)
+X-Cache-ID: TLV (CDN location)
+```
 
 ### Decouple Edge vs. Browser TTLs (CDN-Cache-Control)
 
 By configuring your origin to send RFC 9213 targeted headers, you can instruct the Google edge network to cache content for a full 24 hours while simultaneously forcing users' web browsers to check for updates every minute
 
-|  |
-| --- |
-| Cache-Control: public, max-age=60 CDN-Cache-Control: public, max-age=86400 |
+```http
+Cache-Control: public, max-age=60
+CDN-Cache-Control: public, max-age=86400
+```
 
 * Client Browser: Refetches or revalidates every 60 seconds.
 * Cloud CDN: Serves cached hits from the edge for up to 86,400 seconds (1 day), shielding the backend origin from repeated traffic.
@@ -266,9 +293,23 @@ By configuring your origin to send RFC 9213 targeted headers, you can instruct t
 
 When emergency patches require purging stale assets prior to TTL expiration, submit invalidation requests across Google's edge fleet.
 
-|  |
-| --- |
-| Bash  # Invalidate a single file globally (~10 second propagation) gcloud compute url-maps invalidate-cdn-cache URL\_MAP\_NAME \     --path "/assets/app.js" \     --async  # Invalidate an entire directory prefix gcloud compute url-maps invalidate-cdn-cache URL\_MAP\_NAME \     --path "/assets/\*"  # Invalidate scoped strictly to a specific staging or prod hostname gcloud compute url-maps invalidate-cdn-cache URL\_MAP\_NAME \     --host "app.example.com" \     --path "/static/\*" |
+```bash
+# Invalidate a single file globally (~10 second propagation)
+gcloud compute url-maps invalidate-cdn-cache URL_MAP_NAME \
+    --path "/assets/app.js" \
+    --async
+
+# Invalidate an entire directory prefix
+gcloud compute url-maps invalidate-cdn-cache URL_MAP_NAME \
+    --path "/assets/*"
+
+# Invalidate scoped strictly to a specific staging or prod hostname
+gcloud compute url-maps invalidate-cdn-cache URL_MAP_NAME \
+    --host "app.example.com" \
+    --path "/static/*"
+```
+
+> **[📁 View Script: `scripts/invalidate_cache.sh`](./scripts/invalidate_cache.sh)**
 
 Expected output:
 

@@ -2,4 +2,6 @@
 # This filter isolates capacity-driven failures at the load balancer level, 
 # proving that your backend is being overwhelmed and needs a CDN.
 
-resource.type="http_load_balancer" httpRequest.status>=500 (jsonPayload.statusDetails="backend_timeout" OR jsonPayload.statusDetails="backend_connection_closed_before_data_sent_to_client")
+resource.type="http_load_balancer"
+httpRequest.status>=500
+(jsonPayload.statusDetails="backend_timeout" OR jsonPayload.statusDetails="backend_connection_closed_before_data_sent_to_client")

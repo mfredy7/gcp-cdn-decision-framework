@@ -85,7 +85,7 @@ Google Cloud provides two distinct CDN architectures tailored to specific traffi
 
 ## Visual Decision Architecture
 
-## 
+![](./images/image2.png)
 
 ## GitHub README / CDN Self-Assessment Guide
 

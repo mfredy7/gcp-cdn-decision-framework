@@ -125,126 +125,29 @@ To run this query, navigate to the new Observability Analytics interface and use
 
 Paste the following query into the editor:
 
-|  |
-| --- |
-| SQL  SELECT    REGEXP\_EXTRACT(http\_request.request\_url, r'https?://[^/]+(/[^?#]\*)') AS path\_prefix,    CASE      WHEN http\_request.status >= 500 THEN 'ORIGIN\_COLLAPSE\_5XX'      WHEN http\_request.request\_method IN ('POST', 'PUT', 'DELETE', 'PATCH')           OR http\_request.request\_url LIKE '%/api/%'           OR http\_request.request\_url LIKE '%/graphql%' THEN 'DYNAMIC\_API\_UNCACHEABLE'      ELSE 'STATIC\_CACHEABLE\_ASSET'    END AS workload\_category,    http\_request.request\_method AS http\_method,    COALESCE(LOWER(REGEXP\_EXTRACT(http\_request.request\_url, r'\.([a-zA-Z0-9]+)(?:[\?#]|$)')), 'none') AS file\_type,    COUNT(\*) AS request\_count,    COUNTIF(http\_request.status >= 500) AS error\_5xx\_count,    ROUND(SUM(http\_request.response\_size) / 1024 / 1024, 2) AS total\_mb\_sent,    ROUND(SUM(http\_request.response\_size) / 1024 / 1024 / 1024, 4) AS total\_gb\_sent,    ROUND(AVG(http\_request.latency.seconds \* 1000 + http\_request.latency.nanos / 1000000.0), 2) AS avg\_latency\_ms,    STRING\_AGG(DISTINCT COALESCE(      JSON\_VALUE(json\_payload.clientLocation),      JSON\_VALUE(json\_payload.client\_location),      JSON\_VALUE(json\_payload.securityPolicyRequestData.clientCountry),      http\_request.remote\_ip    ), ', ') AS destination\_countries\_or\_ips  FROM    `YOUR\_PROJECT\_ID.global.\_Default.\_AllLogs`  WHERE    resource.type = "http\_load\_balancer"  GROUP BY    1, 2, 3, 4  ORDER BY    error\_5xx\_count DESC,    total\_mb\_sent DESC; |
+```sql
+SELECT
+  JSON_VALUE(json_payload.cacheId) AS edge_pop,
+  CASE
+    WHEN JSON_VALUE(json_payload.statusDetails) = 'response_from_cache' THEN 'CACHE_HIT'
+    WHEN JSON_VALUE(json_payload.statusDetails) = 'response_from_cache_validated' THEN 'CACHE_REVALIDATED'
+    WHEN JSON_VALUE(json_payload.statusDetails) = 'response_sent_by_backend' THEN 'CACHE_MISS'
+    ELSE JSON_VALUE(json_payload.statusDetails)
+  END AS cache_execution_status,
+  COUNT(*) AS total_requests,
+  ROUND(SUM(http_request.response_size) / 1024 / 1024, 2) AS total_mb_delivered
+FROM
+  `YOUR_PROJECT_ID.global._Default._AllLogs`
+WHERE
+  resource.type = "http_load_balancer"
+  AND timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR)
+GROUP BY
+  1, 2
+ORDER BY
+  total_requests DESC;
+```
 
-Expected Output:
-
-![](./images/image5.png)
-
-### Data Interpretation Matrix
-
-|  |  |  |  |
-| --- | --- | --- | --- |
-| Metric | Move to CDN Indicator / Threshold | Do NOT Move / Bypass Indicator | Architectural Decision & Action |
-| path\_prefix | Static Paths:  /assets/\*, /static/\*, /./images/\*, /downloads/\* | Dynamic Endpoints:  /api/\*, /auth/\*, /graphql/\*, /checkout/\* | If Static Path: Cache at edge.  If Dynamic Path: Configure URL map route rules to bypass CDN caching directly to compute backends. |
-| workload\_category | STATIC\_CACHEABLE\_ASSET or ORIGIN\_COLLAPSE\_5XX | DYNAMIC\_API\_UNCACHEABLE | STATIC: Prime candidate for Cloud/Media CDN.  COLLAPSE: Protect origin via CDN Request Collapsing.  DYNAMIC: Route directly to origin to prevent 0% CHR overhead. |
-| http\_method | Safe Methods:  GET, HEAD | State-Changing Methods:  POST, PUT, PATCH, DELETE | GET/HEAD: Eligible for edge cache storage.  POST/PUT: Uncacheable; proxy through Google edge but bypass cache lookups. |
-| file\_type | Cacheable Extensions:  mp4, webp, zip, js, css, png, dmg, exe | Non-Static / Dynamic:  none, json, html (personalized/dynamic) | If Static: Cache with appropriate edge TTLs.  If None/Dynamic: Pass directly to backend services. |
-| request\_count | High Concurrency:  > 100,000 requests/month | Low Volume:  < 10,000 requests/month | High + Static: Edge caching offloads CPU and TCP/TLS handshakes from origin instances. |
-| error\_5xx\_count | Origin Overload:  ORIGIN\_COLLAPSE\_5XX> 0 (backend timeouts/failures) | Healthy Origin:  0 errors | If > 0: Deploy CDN with Request Collapsing and Origin Shield to aggregate concurrent misses into 1 origin fetch. |
-| total\_mb\_sent | High MB on individual file paths (e.g., video assets) | Sub-megabyte or negligible traffic | Pinpoints exact high-bandwidth asset paths responsible for backend network transfer. |
-| total\_gb\_sent | Above Egress Cliff:  > 1,000–2,000 GB (1–2 TB) | Below Egress Cliff:  < 1,000 GB (< 1 TB) | > 1–2 TB + Static: Immediate ROI through reduced CDN egress pricing and $0.00 GCS cache fill.  < 1 TB: Retain standard origin. |
-| avg\_latency\_ms | High Latency:  > 150–200 ms | Low Latency:  < 50 ms (clients local to backend region) | > 150 ms + Global: Deploy Cloud CDN to terminate TLS at 180+ Anycast PoPs close to users. Note that load balancer latency metrics include origin processing time; high latency can be a symptom of an overloaded backend rather than solely a network issue requiring a CDN. |
-| destination\_countries\_or\_ips | Global Footprint:  Multiple international country codes (US, IL, BR, DE) | Single Local Region:  Single country code matching backend region | Multi-Country: Justifies edge delivery.  Single Local Region: Standard origin delivery is sufficient without CDN. |
-
-## 
-
-Step 3:Run backend Origin Collapse Diagnostic query (Log Explorer Filter)
-
-If the SQL query in the previous step reveals a high number of 5xx errors, you must verify whether those errors are caused by bad application code, or actual infrastructure exhaustion.
-
-This Log Explorer query is designed to detect active infrastructure exhaustion. While standard HTTP 500 errors can often be caused by application bugs or bad code deployments, this specific filter isolates capacity-driven failures at the load balancer level, proving that your backend is being overwhelmed and needs a CDN.
-
-|  |
-| --- |
-| resource.type="http\_load\_balancer" httpRequest.status>=500 (jsonPayload.statusDetails="backend\_timeout" OR jsonPayload.statusDetails="backend\_connection\_closed\_before\_data\_sent\_to\_client") |
-
-|  |
-| --- |
-| Note on Prerequisites:  Cloud CDN: Requires standard roles/compute.networkAdmin and roles/storage.admin IAM permissions.  Media CDN: Access requires explicit project allowlisting via the Google Cloud sales/account team. Self-service registration is not natively available in the console. |
-
-## Deployment via Official Terraform Blueprints
-
-For CDN deployment , use Google Cloud's official Terraform architectures:
-
-* For Cloud CDN: Use [terraform-google-lb-http](https://www.google.com/url?q=https://github.com/terraform-google-modules/terraform-google-lb-http&sa=D&source=editors&ust=1789391605442458&usg=AOvVaw3LxgABZFmf7BzrsPE8Y1Sy) with backends.default.enable\_cdn = true.
-* For Serverless origins (Cloud Run/Functions): See Set up Cloud CDN with Serverless NEGs.
-* For Media CDN: Use [terraform-google-media-cdn-vod](https://www.google.com/url?q=https://github.com/GoogleCloudPlatform/terraform-google-media-cdn-vod&sa=D&source=editors&ust=1789391605442790&usg=AOvVaw12b9KOZPbXfFPsN2nOyGd1)
-
-When defining backend policies in Terraform, add diagnostic headers to monitor edge execution:
-
-|  |
-| --- |
-| HCL  custom\_response\_headers = [   "X-Cache-Status: {cdn\_cache\_status}",   "X-Cache-ID: {cdn\_cache\_id}",   "X-Client-Geo: {client\_region},{client\_city}" ] |
-
-## Edge Verification & Operational Runbook
-
-Once the load balancer is provisioned, you can use these independent operational tools to validate edge caching, debug cache fragmentation, and trigger rapid invalidations.
-
-### Edge Hit / Miss Validation
-
-Send continuous requests using curl to evaluate state transitions across cache instances.
-
-|  |
-| --- |
-| Bash  # Export the target domain or Load Balancer Anycast IP export TARGET\_URL="http://YOUR\_LOAD\_BALANCER\_IP/assets/app.js"  # 1. First probe: Cold origin fetch (Cache Fill) curl -s -D - -o /dev/null "${TARGET\_URL}" | grep -Ei "(HTTP/|via|age|x-cache|cache-control)" |
-
-Expected Cold Output:
-
-|  |
-| --- |
-| HTTP/1.1 200 OK  x-goog-metageneration: 1  x-goog-storage-class: STANDARD  Cache-Control: public,max-age=3600  X-Cache-Status: miss  X-Cache-ID: TLV |
-
-|  |
-| --- |
-| Bash  # 2. Second probe: Immediate re-request (Edge Hit) curl -s -D - -o /dev/null "${TARGET\_URL}" | grep -Ei "(HTTP/|via|age|x-cache|cache-control)" |
-
-Expected Warm Output:
-
-|  |
-| --- |
-| HTTP/1.1 200 OK  x-goog-metageneration: 1  x-goog-storage-class: STANDARD  Age: 156 (the elapsed time in seconds since the content was pulled from the origin)  Cache-Control: public,max-age=3600  X-Cache-Status: hit (CDN status)  X-Cache-ID: TLV (CDN location) |
-
-### Decouple Edge vs. Browser TTLs (CDN-Cache-Control)
-
-By configuring your origin to send RFC 9213 targeted headers, you can instruct the Google edge network to cache content for a full 24 hours while simultaneously forcing users' web browsers to check for updates every minute
-
-|  |
-| --- |
-| Cache-Control: public, max-age=60 CDN-Cache-Control: public, max-age=86400 |
-
-* Client Browser: Refetches or revalidates every 60 seconds.
-* Cloud CDN: Serves cached hits from the edge for up to 86,400 seconds (1 day), shielding the backend origin from repeated traffic.
-
-### Cache Invalidation (Emergency Purge)
-
-When emergency patches require purging stale assets prior to TTL expiration, submit invalidation requests across Google's edge fleet.
-
-|  |
-| --- |
-| Bash  # Invalidate a single file globally (~10 second propagation) gcloud compute url-maps invalidate-cdn-cache URL\_MAP\_NAME \     --path "/assets/app.js" \     --async  # Invalidate an entire directory prefix gcloud compute url-maps invalidate-cdn-cache URL\_MAP\_NAME \     --path "/assets/\*"  # Invalidate scoped strictly to a specific staging or prod hostname gcloud compute url-maps invalidate-cdn-cache URL\_MAP\_NAME \     --host "app.example.com" \     --path "/static/\*" |
-
-Expected output:
-
-Completed invalidation for [https://www.googleapis.com/compute/v1/projects/xxxx/global/urlMaps/xxxxx].
-
-### Logging > Observability Analytics (formerly Log Analytics).
-
-Run this query inside Cloud Logging > Log Analytics to monitor real-time Cache Hit Ratios (CHR) and isolate origin-bound traffic
-
-To run this query, navigate to the new Observability Analytics interface and use the SQL editor:
-
-* In the Google Cloud Console, use the left-hand navigation menu to go to Logging > Observability Analytics (formerly Log Analytics).
-* Set the Time Frame: In the top right corner, set the time range filter to 1 Hour. This ensures the UI time picker matches the real-time monitoring window defined in the SQL query below.
-* By default, you may be in the Query Builder (visual mode). Click the SQL button or toggle to switch to the SQL text editor.
-
-![](./images/image4.png)
-
-|  |
-| --- |
-| SQL  SELECT    JSON\_VALUE(json\_payload.cacheId) AS edge\_pop,    CASE      WHEN JSON\_VALUE(json\_payload.statusDetails) = 'response\_from\_cache' THEN 'CACHE\_HIT'      WHEN JSON\_VALUE(json\_payload.statusDetails) = 'response\_from\_cache\_validated' THEN 'CACHE\_REVALIDATED'      WHEN JSON\_VALUE(json\_payload.statusDetails) = 'response\_sent\_by\_backend' THEN 'CACHE\_MISS'      ELSE JSON\_VALUE(json\_payload.statusDetails)    END AS cache\_execution\_status,    COUNT(\*) AS total\_requests,    ROUND(SUM(http\_request.response\_size) / 1024 / 1024, 2) AS total\_mb\_delivered  FROM    `YOUR\_PROJECT\_ID.global.\_Default.\_AllLogs`  WHERE    resource.type = "http\_load\_balancer"    AND timestamp >= TIMESTAMP\_SUB(CURRENT\_TIMESTAMP(), INTERVAL 1 HOUR)  GROUP BY    1, 2  ORDER BY    total\_requests DESC; |
+> **[📁 View Raw SQL File: `queries/cache_execution_analysis.sql`](./queries/cache_execution_analysis.sql)**
 
 Expected Output:
 

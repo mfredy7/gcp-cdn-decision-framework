@@ -204,9 +204,10 @@ resource.type="http_load_balancer" httpRequest.status>=500 (jsonPayload.statusDe
 
 > **[📁 View Raw Filter: `monitoring/dashboard_filters.txt`](./monitoring/dashboard_filters.txt)**
 
-|  |
-| --- |
-| Note on Prerequisites:  Cloud CDN: Requires standard roles/compute.networkAdmin and roles/storage.admin IAM permissions.  Media CDN: Access requires explicit project allowlisting via the Google Cloud sales/account team. Self-service registration is not natively available in the console. |
+**Note on Prerequisites:**
+
+* **Cloud CDN:** Requires standard `roles/compute.networkAdmin` and `roles/storage.admin` IAM permissions.
+* **Media CDN:** Access requires explicit project allowlisting via the Google Cloud sales/account team. Self-service registration is not natively available in the console.
 
 ## Deployment via Official Terraform Blueprints
 

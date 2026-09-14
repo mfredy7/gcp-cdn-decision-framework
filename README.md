@@ -198,9 +198,11 @@ If the SQL query in the previous step reveals a high number of 5xx errors, you m
 
 This Log Explorer query is designed to detect active infrastructure exhaustion. While standard HTTP 500 errors can often be caused by application bugs or bad code deployments, this specific filter isolates capacity-driven failures at the load balancer level, proving that your backend is being overwhelmed and needs a CDN.
 
-|  |
-| --- |
-| resource.type="http\_load\_balancer" httpRequest.status>=500 (jsonPayload.statusDetails="backend\_timeout" OR jsonPayload.statusDetails="backend\_connection\_closed\_before\_data\_sent\_to\_client") |
+```text
+resource.type="http_load_balancer" httpRequest.status>=500 (jsonPayload.statusDetails="backend_timeout" OR jsonPayload.statusDetails="backend_connection_closed_before_data_sent_to_client")
+```
+
+> **[📁 View Raw Filter: `monitoring/dashboard_filters.txt`](./monitoring/dashboard_filters.txt)**
 
 |  |
 | --- |

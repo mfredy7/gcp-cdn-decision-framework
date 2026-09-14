@@ -111,7 +111,7 @@ If you haven't already upgraded your \_Default bucket, you need to do this first
 * Locate the \_Default bucket.
 * If it is not upgraded, click Upgrade to enable Log Analytics.
 
-![](images/image3.png)
+![](./images/image3.png)
 
 ### Step 2: Run the Egress Analysis Query
 
@@ -121,7 +121,7 @@ To run this query, navigate to the new Observability Analytics interface and use
 * Set the Time Frame: In the top right corner, set the time range filter to 30 Days (or at least 7 days). Because Google Cloud egress billing and the 1–2 TB baseline threshold are evaluated on a monthly cycle,  30-day lookback window offers the most accurate representation of regular usage patterns.
 * By default, you may be in the Query Builder (visual mode). Click the SQL button or toggle to switch to the SQL text editor.
 
-![](images/image4.png)
+![](./images/image4.png)
 
 Paste the following query into the editor:
 
@@ -131,14 +131,14 @@ Paste the following query into the editor:
 
 Expected Output:
 
-![](images/image5.png)
+![](./images/image5.png)
 
 ### Data Interpretation Matrix
 
 |  |  |  |  |
 | --- | --- | --- | --- |
 | Metric | Move to CDN Indicator / Threshold | Do NOT Move / Bypass Indicator | Architectural Decision & Action |
-| path\_prefix | Static Paths:  /assets/\*, /static/\*, /images/\*, /downloads/\* | Dynamic Endpoints:  /api/\*, /auth/\*, /graphql/\*, /checkout/\* | If Static Path: Cache at edge.  If Dynamic Path: Configure URL map route rules to bypass CDN caching directly to compute backends. |
+| path\_prefix | Static Paths:  /assets/\*, /static/\*, /./images/\*, /downloads/\* | Dynamic Endpoints:  /api/\*, /auth/\*, /graphql/\*, /checkout/\* | If Static Path: Cache at edge.  If Dynamic Path: Configure URL map route rules to bypass CDN caching directly to compute backends. |
 | workload\_category | STATIC\_CACHEABLE\_ASSET or ORIGIN\_COLLAPSE\_5XX | DYNAMIC\_API\_UNCACHEABLE | STATIC: Prime candidate for Cloud/Media CDN.  COLLAPSE: Protect origin via CDN Request Collapsing.  DYNAMIC: Route directly to origin to prevent 0% CHR overhead. |
 | http\_method | Safe Methods:  GET, HEAD | State-Changing Methods:  POST, PUT, PATCH, DELETE | GET/HEAD: Eligible for edge cache storage.  POST/PUT: Uncacheable; proxy through Google edge but bypass cache lookups. |
 | file\_type | Cacheable Extensions:  mp4, webp, zip, js, css, png, dmg, exe | Non-Static / Dynamic:  none, json, html (personalized/dynamic) | If Static: Cache with appropriate edge TTLs.  If None/Dynamic: Pass directly to backend services. |
@@ -240,7 +240,7 @@ To run this query, navigate to the new Observability Analytics interface and use
 * Set the Time Frame: In the top right corner, set the time range filter to 1 Hour. This ensures the UI time picker matches the real-time monitoring window defined in the SQL query below.
 * By default, you may be in the Query Builder (visual mode). Click the SQL button or toggle to switch to the SQL text editor.
 
-![](images/image4.png)
+![](./images/image4.png)
 
 |  |
 | --- |
@@ -248,7 +248,7 @@ To run this query, navigate to the new Observability Analytics interface and use
 
 Expected Output:
 
-![](images/image1.png)
+![](./images/image1.png)
 
 ### Data Interpretation Matrix
 

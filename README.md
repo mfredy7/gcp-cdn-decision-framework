@@ -91,9 +91,18 @@ Google Cloud provides two distinct CDN architectures tailored to specific traffi
 
 ## Repository Structure
 
-|  |
-| --- |
-| . ├── monitoring/ │   ├── log\_analytics\_queries.sql    # Egress and latency tracking │   └── dashboard\_filters.txt        # Cloud Logging filters ├── terraform/ │   ├── main.tf                      # CDN and Origin resources │   ├── variables.tf                 # Project-specific variables │   └── outputs.tf                   # Target IPs and bucket names └── docs/     └── troubleshooting\_matrix.md    # Cache header reference |
+```text
+. 
+├── monitoring/ 
+│   ├── log_analytics_queries.sql    # Egress and latency tracking 
+│   └── dashboard_filters.txt        # Cloud Logging filters 
+├── terraform/ 
+│   ├── main.tf                      # CDN and Origin resources 
+│   ├── variables.tf                 # Project-specific variables 
+│   └── outputs.tf                   # Target IPs and bucket names 
+└── docs/    
+    └── troubleshooting_matrix.md    # Cache header reference
+```
 
 ## Log Analytics: Tracking the Egress Cliff and User Experience
 
@@ -159,7 +168,7 @@ ORDER BY
   total_mb_sent DESC;
 ```
 
-> **[📁 View Raw SQL File: `queries/egress_analysis.sql`](./queries/egress_analysis.sql)**
+> **[📁 View Raw SQL File: `monitoring/egress_analysis.sql`](./monitoring/egress_analysis.sql)**
 
 Expected Output:
 
@@ -294,7 +303,7 @@ ORDER BY
    total_requests DESC;
 ```
 
-> **[📁 View Raw SQL File: `queries/cache_execution_analysis.sql`](./queries/cache_execution_analysis.sql)**
+> **[📁 View Raw SQL File: `monitoring/cache_execution_analysis.sql`](./monitoring/cache_execution_analysis.sql)**
 
 Expected Output:
 

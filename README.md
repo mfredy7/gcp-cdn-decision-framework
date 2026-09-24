@@ -216,7 +216,9 @@ httpRequest.status>=500
 
 ## Deployment via Official Terraform Blueprints
 
-For CDN deployment , use Google Cloud's official Terraform architectures:
+> **🛑 STOP / DECISION GATE:** The following steps are for actively deploying infrastructure. You should only proceed with this section if your results from the Log Analytics or AI Assessment indicated that your architecture crossed the cost and performance thresholds (e.g., high egress volume for `STATIC_CACHEABLE_ASSET`). If your data showed low egress or dynamic-only traffic, a CDN is not required and you can stop here.
+
+Once you have confirmed a CDN is the right path, use Google Cloud's official Terraform architectures for production deployment:
 
 * For Cloud CDN: Use [terraform-google-lb-http](https://www.google.com/url?q=https://github.com/terraform-google-modules/terraform-google-lb-http&sa=D&source=editors&ust=1789391605442458&usg=AOvVaw3LxgABZFmf7BzrsPE8Y1Sy) with backends.default.enable\_cdn = true.
 * For Serverless origins (Cloud Run/Functions): See Set up Cloud CDN with Serverless NEGs.

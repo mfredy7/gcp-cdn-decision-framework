@@ -23,9 +23,11 @@ As your application grows, relying on a single centralized server can lead to sl
 
 The architectural decision to implement a Content Delivery Network (CDN) is driven by three primary operational triggers: the volume and cost of data transfer, the geographic distribution of the user base, and backend resource constraints.
 
-### The 1–2 TB Monthly Egress Cost Cliff
+### The 1–2 TB Monthly Egress Cost Cliff & Network Tiers
 
-For architectures serving static assets (e.g., media files, compiled JavaScript, cascading stylesheets, firmware binaries), the 1–2 TB monthly outbound threshold represents a financial pivot point. Standard internet egress pricing from cloud providers incurs higher operational expenditure compared to the discounted cache-fill rates applied when a CDN retrieves content from Google Cloud Storage (GCS), Compute Engine, or serverless infrastructure. Once volume eclipses this threshold, the CDN effectively amortizes its own cost through heavily reduced egress billing.
+For architectures serving static assets (e.g., media files, compiled JavaScript, stylesheets, binaries), the 1–2 TB monthly outbound threshold represents a financial pivot point. 
+
+It is important to note that enabling Cloud CDN requires deploying a Global External Application Load Balancer on GCP's **Premium Network Service Tier**. While Premium Tier routing generally carries a higher baseline egress cost than Standard Tier, the CDN flips the economic model: the heavily discounted **CDN cache egress rates** (delivering to the user) and **cache-fill rates** (fetching from your origin) are significantly cheaper than standard origin egress. Once your static volume eclipses this 1–2 TB threshold, the total cost of delivery drops dramatically, making the move to Premium Tier highly cost-effective.
 
 ### Global Audience Latency Patterns
 

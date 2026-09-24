@@ -214,9 +214,8 @@ httpRequest.status>=500
 * **Cloud CDN:** Requires standard `roles/compute.networkAdmin` and `roles/storage.admin` IAM permissions.
 * **Media CDN:** Access requires explicit project allowlisting via the Google Cloud sales/account team. Self-service registration is not natively available in the console.
 
-## Deployment via Official Terraform Blueprints
-
-> **🛑 STOP / DECISION GATE:** The following steps are for actively deploying infrastructure. You should only proceed with this section if your results from the Log Analytics or AI Assessment indicated that your architecture crossed the cost and performance thresholds (e.g., high egress volume for `STATIC_CACHEABLE_ASSET`). If your data showed low egress or dynamic-only traffic, a CDN is not required and you can stop here.
+Deployment of CDN via Official Terraform Blueprints
+---------------------------------------------------
 
 Once you have confirmed a CDN is the right path, use Google Cloud's official Terraform architectures for production deployment:
 

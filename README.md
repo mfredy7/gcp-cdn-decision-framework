@@ -41,6 +41,12 @@ For architectures serving static assets (e.g., media files, compiled JavaScript,
 
 Distance creates delay. When 95% of your global users are waiting longer than 150–200ms just to load static files, adding a CDN becomes a necessity. Instead of forcing users to make a long round-trip to your main server just to establish a connection, CDNs handle the TCP and TLS security handshakes locally at the edge. This significantly speeds up load times and improves the user experience.
 
+### The Remote-Static Overlap
+
+Having a global audience and having static data are two different things. The true value of a CDN is unlocked when you measure the overlap between the two: how much of your static data is being requested by remote users?
+
+If your distant users are only hitting dynamic, uncacheable API endpoints, a CDN will only provide minor latency improvements (via edge TCP/TLS termination). However, if a significant percentage of your heavy static payloads (images, JS, CSS) are being shipped across the globe, deploying a CDN becomes a mandatory architectural requirement to prevent high latency and exorbitant inter-region egress costs.
+
 ### Backend Origin Collapse Mechanics
 
 Without an edge caching tier, every individual client request executes against the backend origin. During high-concurrency events—such as software releases, flash sales, or viral marketing—the resulting "thundering herd" effect can rapidly exhaust origin socket connections, memory buffers, or compute cycles, resulting in HTTP 502/503 timeouts and total service degradation. CDNs operate as a resilient buffer, absorbing these traffic spikes.
@@ -293,6 +299,9 @@ CDN-Cache-Control: public, max-age=86400
 ### Cache Invalidation (Emergency Purge)
 
 When emergency patches require purging stale assets prior to TTL expiration, submit invalidation requests across Google's edge fleet.
+
+Note that while Cloud CDN’s fast cache invalidation pipeline propagates in under 10 seconds, the `--async` flag returns the CLI operation immediately.
+> **Warning**: Cache invalidations are strictly rate-limited to 500 requests per minute per Google Cloud Project. Exceeding this will result in API quota errors.
 
 ```bash
 # Invalidate a single file globally (~10 second propagation)

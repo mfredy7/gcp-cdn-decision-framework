@@ -2,7 +2,8 @@
 
 ## Technical Abstract
 
-This guide is designed to help answer two critical questions for your Google Cloud architecture: Do I need a Content Delivery Network (CDN)? And if so, which one is right for me (Cloud CDN vs. Media CDN)?As your application grows, relying on a single centralized server can lead to slow load times for global users, high bandwidth bills, and an increased risk of your site crashing during traffic spikes. A CDN solves these problems by storing (caching) your content on servers located right next to your users around the world. This approach dramatically lowers your network costs, protects your backend servers from being overwhelmed, and ensures a faster, more secure experience for your customers.
+This guide is designed to help answer two critical questions for your Google Cloud architecture: Do I need a Content Delivery Network (CDN)? And if so, which one is right for me (Cloud CDN vs. Media CDN)?
+As your application grows, relying on a single centralized server can lead to slow load times for global users, high bandwidth bills, and an increased risk of your site crashing during traffic spikes. A CDN solves these problems by storing (caching) your content on servers located right next to your users around the world. This approach dramatically lowers your network costs, protects your backend servers from being overwhelmed, and ensures a faster, more secure experience for your customers.
 
 ## CDN Value
 

@@ -1,14 +1,3 @@
-GCP CDN Decision Framework: Assessing Needs and Defining CDN type
-
-Visibility: Public
-
-Target Platform: Medium.com
-
-Category: Infrastructure Strategy & Edge Architecture
-
-Author: Fredy Maizlev
-
-
 # Expert Capsule: The One-Pager
 
 ## Technical Abstract

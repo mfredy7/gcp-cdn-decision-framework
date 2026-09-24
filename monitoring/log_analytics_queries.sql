@@ -19,12 +19,13 @@ SELECT
   COUNT(*) AS request_count,
   COUNTIF(http_request.status >= 500) AS error_5xx_count,
   ROUND(SUM(http_request.response_size) / 1024 / 1024, 2) AS total_mb_sent,
-  ROUND(SUM(http_request.response_size) / 1024 / 1024 / 1024, 4) AS total_gb_sent,
+  ROUND(SUM(http_request.response_size) / 1024 / 1024, 4) AS total_gb_sent,
   ROUND(AVG(http_request.latency.seconds * 1000 + http_request.latency.nanos / 1000000.0), 2) AS avg_latency_ms
 FROM 
   `YOUR_PROJECT_ID.global._Default._AllLogs`
 WHERE 
   resource.type = "http_load_balancer"
+  -- Filters to remove bot noise and focus on legitimate CDN traffic
   AND http_request.request_method IN ('GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS')
   AND REGEXP_CONTAINS(http_request.request_url, r'\.env|\.bak|\.ini') = FALSE
 GROUP BY 

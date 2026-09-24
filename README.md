@@ -131,7 +131,7 @@ To run this query, navigate to the new Observability Analytics interface and use
 Paste the following query into the editor:
 
 ```sql
-SELECT
+SELECT 
   COALESCE(
     JSON_VALUE(json_payload.clientLocation),
     JSON_VALUE(json_payload.client_location),
@@ -139,12 +139,12 @@ SELECT
     http_request.remote_ip,
     'Unknown'
   ) AS client_country,
-  CASE
+  CASE 
     WHEN http_request.status >= 500 THEN 'ORIGIN_COLLAPSE_5XX'
-    WHEN http_request.request_method IN ('POST', 'PUT', 'DELETE', 'PATCH')
-         OR http_request.request_url LIKE '%/api/%'
+    WHEN http_request.request_method IN ('POST', 'PUT', 'DELETE', 'PATCH') 
+         OR http_request.request_url LIKE '%/api/%' 
          OR http_request.request_url LIKE '%/graphql%' THEN 'DYNAMIC_API_UNCACHEABLE'
-    ELSE 'STATIC_CACHEABLE_ASSET'
+    ELSE 'STATIC_CACHEABLE_ASSET' 
   END AS workload_category,
   REGEXP_EXTRACT(http_request.request_url, r'https?://[^/]+(/[^?#]*)') AS path_prefix,
   http_request.request_method AS http_method,
@@ -152,16 +152,20 @@ SELECT
   COUNT(*) AS request_count,
   COUNTIF(http_request.status >= 500) AS error_5xx_count,
   ROUND(SUM(http_request.response_size) / 1024 / 1024, 2) AS total_mb_sent,
-  ROUND(SUM(http_request.response_size) / 1024 / 1024 / 1024, 4) AS total_gb_sent,
+  ROUND(SUM(http_request.response_size) / 1024 / 1024, 4) AS total_gb_sent,
   ROUND(AVG(http_request.latency.seconds * 1000 + http_request.latency.nanos / 1000000.0), 2) AS avg_latency_ms
-FROM
+FROM 
   `YOUR_PROJECT_ID.global._Default._AllLogs`
-WHERE
+WHERE 
   resource.type = "http_load_balancer"
-GROUP BY
+  -- Filters to remove bot noise and focus on legitimate CDN traffic
+  AND http_request.request_method IN ('GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS')
+  AND REGEXP_CONTAINS(http_request.request_url, r'\.env|\.bak|\.ini') = FALSE
+GROUP BY 
   1, 2, 3, 4, 5
-ORDER BY
-  total_mb_sent DESC;
+ORDER BY 
+  total_gb_sent DESC, 
+  error_5xx_count DESC;
 ```
 
 > **[📁 View Raw SQL File: `monitoring/egress_analysis.sql`](./monitoring/egress_analysis.sql)**

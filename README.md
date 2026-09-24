@@ -1,5 +1,3 @@
-# Expert Capsule: The One-Pager
-
 ## Technical Abstract
 
 This guide is designed to help answer two critical questions for your Google Cloud architecture: Do I need a Content Delivery Network (CDN)? And if so, which one is right for me (Cloud CDN vs. Media CDN)?
